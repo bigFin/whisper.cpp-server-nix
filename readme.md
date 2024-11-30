@@ -21,7 +21,7 @@ This project sets up a secure, isolated server for Whisper.cpp using nix-shell a
 3. Run `setup.sh` to configure the server:
 
    ```bash
-   cd whisper.cpp/whisper.cpp-server-nix-systemd
+   cd whisper.cpp-server-nix-systemd
    ./setup.sh
    ```
 
