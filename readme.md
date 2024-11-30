@@ -29,7 +29,6 @@ This project sets up a secure, isolated server for Whisper.cpp using nix-shell a
 
 - Isolated execution via nix-shell
 - Minimal-privilege whispercpp user
-- Automatic MP3-to-WAV conversion using ffmpeg
 - Preconfigured `.env` file for server settings
 
 ## Structure
