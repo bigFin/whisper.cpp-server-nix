@@ -1,6 +1,8 @@
 # Whisper.cpp Server (Nix Isolated)
 This project sets up a secure, isolated server for Whisper.cpp using nix-shell and systemd using bash. 
 
+- whisper.cpp server https://github.com/ggerganov/whisper.cpp/tree/master/examples/server 
+
 ## TL;DR
 
 
