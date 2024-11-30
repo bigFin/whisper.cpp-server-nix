@@ -1,70 +1,59 @@
-# Whisper.cpp Setup with Nix Shell and Systemd Service
+# Whisper.cpp Server (Nix Isolated)
 
-## Overview
-This repository contains scripts and configurations to set up the Whisper.cpp server using a Nix shell for isolation. It creates a dedicated system user and configures a systemd service to manage the server process.
-
-## Prerequisites
-- Nix package manager installed
-- Whisper.cpp repository cloned locally
-- Root or sudo privileges
-
-## Setup
-1. Clone this repository and create a symlink to `whisper.cpp/examples/server`:
+## TL;DR
+1. Clone this repository into the root of `whisper.cpp`:
    ```bash
-   ln -s /path/to/this/repo /path/to/whisper.cpp/examples/server/whisper-server
+   git clone <repo-url> whisper.cpp/whisper-server
 
-    Navigate to the setup directory and run the setup script:
+    Run setup.sh to configure the server:
 
-    cd /path/to/whisper.cpp/examples/server/whisper-server
-    sudo ./setup.sh
+cd whisper.cpp/whisper-server
+./setup.sh
 
-Configuration
+Test the server with quickstart.sh:
 
-Modify /opt/whispercpp/.env to adjust runtime parameters:
+    ./quickstart.sh
+
+Overview
+
+This project sets up a secure, isolated server for Whisper.cpp using nix-shell and systemd.
+Features
+
+    Isolated execution via nix-shell
+    Minimal-privilege whispercpp user
+    Automatic MP3-to-WAV conversion using ffmpeg
+    Preconfigured .env file for server settings
+
+Structure
+
+    setup.sh: Installs dependencies, creates whispercpp user, and sets up the systemd service.
+    quickstart.sh: Restarts the server, checks its status, and tests it with a sample audio file.
+    .env: Configurable server parameters (e.g., port, model path).
+
+Prerequisites
+
+    Nix package manager (multi-user installation)
+    Systemd
+
+Customization
+
+Edit .env to adjust server parameters like port, model path, or log locations.
 
 WHISPERCPP_PORT=8080
-WHISPERCPP_MODEL=/opt/whispercpp/models/ggml-base.bin
-WHISPERCPP_LOG_LEVEL=info
-WHISPERCPP_LOG_FILE=/opt/whispercpp/logs/whispercpp.log
-WHISPERCPP_AUDIO_TMP_DIR=/opt/whispercpp/tmp/audio
+WHISPERCPP_MODEL=../models/ggml-base.en.bin
+WHISPERCPP_LOG_FILE=logs/whispercpp.log
+WHISPERCPP_AUDIO_TMP_DIR=tmp/audio
 
-Apply changes by restarting the service:
+Maintenance
+
+    To restart the server:
 
 sudo systemctl restart whispercpp.service
 
-Usage
+To check server logs:
 
-    Start the service:
+sudo journalctl -u whispercpp.service
 
-sudo systemctl start whispercpp.service
+To uninstall:
 
-Stop the service:
-
-sudo systemctl stop whispercpp.service
-
-Check status:
-
-    sudo systemctl status whispercpp.service
-
-Uninstallation
-
-Run the provided uninstall script to remove the systemd service, system user, and associated files:
-
-sudo ./uninstall.sh
-
-Notes
-
-    Default installation directory: /opt/whispercpp
-    System user: whispercpp
-    Ensure Whisper.cpp is built and ready before running setup.
-
-Troubleshooting
-
-Verify user and group:
-
-    id whispercpp
-
-Check logs:
-
-    journalctl -u whispercpp.service -f
-
+./uninstall.sh

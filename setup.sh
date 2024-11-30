@@ -1,80 +1,69 @@
 #!/bin/bash
 
 # Variables
+SERVICE_NAME="whispercpp.service"
 SERVICE_USER="whispercpp"
 SERVICE_GROUP="whispercpp"
-APP_DIR="/opt/whispercpp"
-SERVICE_NAME="whispercpp.service"
+HOST_USER=$(whoami)  # Host user running the setup script
+APP_DIR=$(pwd)  # Should resolve to /SSD500/Code/llm/whisper.cpp/whisper-server
+RUN_SERVER_SCRIPT="$APP_DIR/run_server.sh"
 ENV_FILE="$APP_DIR/.env"
-DEFAULT_PORT="8080"
-DEFAULT_MODEL_PATH="$APP_DIR/models/ggml-base.bin"
-LOG_FILE="$APP_DIR/logs/whispercpp.log"
-TMP_AUDIO_DIR="$APP_DIR/tmp/audio"
+
+# Ensure run_server.sh exists
+if [ ! -f "$RUN_SERVER_SCRIPT" ]; then
+  echo "Error: $RUN_SERVER_SCRIPT not found. Ensure the script is in $APP_DIR."
+  exit 1
+fi
+
+# Make run_server.sh executable
+chmod +x "$RUN_SERVER_SCRIPT"
 
 # Create user and group if they do not exist
 if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
-    echo "Creating user and group: $SERVICE_USER"
-    sudo groupadd "$SERVICE_GROUP"
-    sudo useradd -r -g "$SERVICE_GROUP" -d "$APP_DIR" -s /usr/sbin/nologin "$SERVICE_USER"
+  echo "Creating user and group: $SERVICE_USER"
+  sudo groupadd "$SERVICE_GROUP"
+  sudo useradd -r -g "$SERVICE_GROUP" -d "$APP_DIR" -s /usr/sbin/nologin "$SERVICE_USER"
+fi
 
-    # Verify user and group creation
-    if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
-        echo "Error: Failed to create user $SERVICE_USER."
-        exit 1
-    fi
+# Add host user to the whispercpp group for shared access
+echo "Adding $HOST_USER to $SERVICE_GROUP group."
+sudo usermod -aG "$SERVICE_GROUP" "$HOST_USER"
 
-    if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
-        echo "Error: Failed to create group $SERVICE_GROUP."
-        exit 1
-    fi
+# Add the whispercpp user to the nixbld group for Nix daemon access
+if getent group nixbld >/dev/null; then
+  echo "Adding $SERVICE_USER to the nixbld group for Nix daemon access."
+  sudo usermod -aG nixbld "$SERVICE_USER"
 else
-    echo "User $SERVICE_USER already exists."
+  echo "The nixbld group does not exist. Granting direct ACL permissions."
+  sudo setfacl -m u:$SERVICE_USER:rwx /nix/var/nix/daemon-socket/socket
 fi
 
 # Set up application directory
 echo "Setting up application directory: $APP_DIR"
-sudo mkdir -p "$APP_DIR"
-sudo mkdir -p "$APP_DIR/models" "$APP_DIR/logs" "$TMP_AUDIO_DIR"
 sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$APP_DIR"
 
-# Move application files to the application directory (adjust paths as needed)
-echo "Moving application files to $APP_DIR"
-sudo cp -r /path/to/whisper.cpp "$APP_DIR"
-sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$APP_DIR"
-
-# Verify directory ownership
-if [ "$(stat -c '%U' $APP_DIR)" != "$SERVICE_USER" ]; then
-    echo "Error: Ownership of $APP_DIR is not set to $SERVICE_USER."
-    exit 1
-fi
+# Grant group write permissions to the directory and ensure the host user can access it
+sudo chmod -R g+rwX "$APP_DIR"
+sudo setfacl -R -m u:$HOST_USER:rwx "$APP_DIR"
+sudo setfacl -R -m g:$SERVICE_GROUP:rwx "$APP_DIR"
 
 # Create a default .env file if it doesn't exist
 if [ ! -f "$ENV_FILE" ]; then
-    echo "Creating .env file with default values"
-    sudo bash -c "cat > $ENV_FILE" <<EOF
+  echo "Creating .env file with default values"
+  sudo bash -c "cat > $ENV_FILE" <<EOF
 # Configuration for Whisper.cpp server
 
 # Server Configuration
-WHISPERCPP_PORT=$DEFAULT_PORT
-WHISPERCPP_MODEL=$DEFAULT_MODEL_PATH
-
-# User and Group Configuration
-WHISPERCPP_USER=$SERVICE_USER
-WHISPERCPP_GROUP=$SERVICE_GROUP
+WHISPERCPP_PORT=8080
+WHISPERCPP_MODEL=../models/ggml-base.en.bin  # Adjusted to match working path
 
 # Logging Configuration
-WHISPERCPP_LOG_LEVEL=info
-WHISPERCPP_LOG_FILE=$LOG_FILE
+WHISPERCPP_LOG_FILE=$APP_DIR/logs/whispercpp.log
 
 # Audio Configuration
-WHISPERCPP_AUDIO_DEVICE=default
-WHISPERCPP_SAMPLE_RATE=16000
-
-# Paths for Additional Dependencies
-WHISPERCPP_FFMPEG_BIN=/usr/bin/ffmpeg
-WHISPERCPP_AUDIO_TMP_DIR=$TMP_AUDIO_DIR
+WHISPERCPP_AUDIO_TMP_DIR=$APP_DIR/tmp/audio
 EOF
-    sudo chown "$SERVICE_USER:$SERVICE_GROUP" "$ENV_FILE"
+  sudo chown "$SERVICE_USER:$SERVICE_GROUP" "$ENV_FILE"
 fi
 
 # Create systemd service
@@ -86,37 +75,20 @@ After=network.target
 
 [Service]
 Type=simple
-EnvironmentFile=$ENV_FILE
-ExecStart=/nix/store/.../bin/nix-shell $APP_DIR/default.nix --run "\
-  $APP_DIR/examples/server/server \
-  --port \$WHISPERCPP_PORT \
-  --model \$WHISPERCPP_MODEL \
-  --log-file \$WHISPERCPP_LOG_FILE \
-  --log-level \$WHISPERCPP_LOG_LEVEL"
+ExecStart=$RUN_SERVER_SCRIPT
 User=$SERVICE_USER
 Group=$SERVICE_GROUP
 WorkingDirectory=$APP_DIR
+EnvironmentFile=$ENV_FILE
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Verify systemd service creation
-if [ ! -f "/etc/systemd/system/$SERVICE_NAME" ]; then
-    echo "Error: Failed to create systemd service file."
-    exit 1
-fi
-
 # Reload systemd and enable service
 echo "Reloading systemd daemon and enabling service..."
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
-
-# Verify systemd enablement
-if ! systemctl is-enabled "$SERVICE_NAME" >/dev/null 2>&1; then
-    echo "Error: Failed to enable $SERVICE_NAME."
-    exit 1
-fi
 
 echo "Setup complete. Start the service with: sudo systemctl start $SERVICE_NAME"
