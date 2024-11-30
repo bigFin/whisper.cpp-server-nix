@@ -6,20 +6,25 @@ This project sets up a secure, isolated server for Whisper.cpp using nix-shell a
 ## TL;DR
 
 
-1. Clone this repository into the root of `whisper.cpp`:
+1. Clone `whisper.cpp`:
+
+   ```bash
+   git clone https://github.com/ggerganov/whisper.cpp/tree/master
+   ```
+2. Clone this repository into the root of `whisper.cpp`:
 
    ```bash
    git clone https://github.com/bigFin/whisper.cpp-server-nix-systemd
    ```
 
-2. Run `setup.sh` to configure the server:
+3. Run `setup.sh` to configure the server:
 
    ```bash
    cd whisper.cpp/whisper.cpp-server-nix-systemd
    ./setup.sh
    ```
 
-3. Test the server with `quickstart.sh`:
+4. Test the server with `quickstart.sh`:
 
    ```bash
    ./quickstart.sh
