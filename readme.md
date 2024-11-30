@@ -14,6 +14,7 @@ This project sets up a secure, isolated server for Whisper.cpp using nix-shell a
 2. Clone this repository into the root of `whisper.cpp`:
 
    ```bash
+   cd whisper.cpp
    git clone https://github.com/bigFin/whisper.cpp-server-nix-systemd
    ```
 
